@@ -1,0 +1,882 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>某大材料院 · 新生分流模拟器 v2.6</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0e17;
+      --surface: #121a2b;
+      --surface2: #1a2540;
+      --border: rgba(99,179,237,.15);
+      --accent: #3b9eff;
+      --accent2: #7c5cff;
+      --success: #34d399;
+      --warn: #fbbf24;
+      --danger: #f87171;
+      --text: #e8edf5;
+      --muted: #8b9cb8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { font-family: 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; padding-bottom: 20px; }
+    
+    .page { max-width: 1200px; margin: 0 auto; padding: 12px; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* Setup & Panels */
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+    h1 { font-size: 22px; text-align: center; color: var(--text); margin-bottom: 4px; font-weight: 700; letter-spacing: 0.5px; }
+    .subtitle { text-align: center; font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+    
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: 13px; margin-bottom: 6px; color: var(--muted); font-weight: 500; }
+    select, input[type="text"] { width: 100%; background: var(--surface2); border: 1px solid var(--border); padding: 12px; color: var(--text); border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s; }
+    select:focus, input[type="text"]:focus { border-color: var(--accent); }
+    
+    .checkbox-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+    .checkbox-label { display: flex; align-items: center; background: var(--surface2); padding: 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 12px; }
+    .checkbox-label input { margin-right: 8px; width: 14px; height: 14px; }
+
+    .btn { display: inline-block; width: 100%; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; border: none; padding: 14px; border-radius: 8px; font-weight: 600; font-size: 15px; cursor: pointer; transition: transform 0.1s, opacity 0.2s; text-align: center; text-decoration: none; box-shadow: 0 4px 12px rgba(59,159,255,0.2); }
+    .btn:active { transform: scale(0.98); opacity: 0.9; }
+
+    /* Major Pick Cards */
+    .major-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 16px; }
+    @media(max-width: 768px){ .major-grid { grid-template-columns: 1fr; } }
+    .major-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; cursor: pointer; transition: transform 0.2s, border-color 0.2s; position: relative; }
+    .major-card:hover, .major-card:active { border-color: var(--accent); background: rgba(59,159,255,0.05); }
+    .major-card h3 { font-size: 16px; margin-bottom: 8px; color: var(--accent); }
+    .major-card p { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+    /* Layout Six Rows Grid */
+    .status-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+    .status-box { background: var(--surface); border: 1px solid var(--border); padding: 8px 10px; border-radius: 8px; }
+    .status-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .progress-outer { height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+    .progress-inner { height: 100%; border-radius: 3px; transition: width 0.3s; width: 0%; }
+    .p-mood { background: var(--success); }
+    .p-intel { background: var(--accent); }
+    .p-energy { background: var(--warn); }
+
+    .context-bar { display: flex; justify-content: space-between; align-items: center; background: var(--surface); border: 1px solid var(--border); padding: 10px 12px; border-radius: 8px; font-size: 12px; margin-bottom: 10px; flex-wrap: wrap; gap: 6px; }
+    .tags { display: flex; gap: 4px; }
+    .tag { font-size: 10px; padding: 2px 5px; border-radius: 4px; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); }
+    .tag.active { color: var(--accent); border-color: var(--accent); background: rgba(59,159,255,0.1); }
+
+    .task-alarm { background: rgba(248,113,113,0.08); border: 1px dashed var(--danger); padding: 10px; border-radius: 8px; font-size: 12px; color: var(--danger); margin-bottom: 10px; display: none; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+    .task-counters { display: flex; gap: 10px; font-family: 'JetBrains Mono', monospace; }
+
+    /* Master Layout Mobile Optimization (Strict 100% Mobile Stack First) */
+    .game-body { display: grid; grid-template-columns: 46% 54%; gap: 12px; height: calc(100vh - 210px); min-height: 520px; }
+    @media (max-width: 860px) { 
+      .game-body { grid-template-columns: 1fr; height: auto; min-height: unset; display: flex; flex-direction: column; } 
+      .right-column { order: 2; height: 320px !important; }
+      .left-column { order: 1; }
+    }
+
+    .left-column { display: flex; flex-direction: column; gap: 10px; height: 100%; }
+    
+    /* Scene Graphic Display Area */
+    .scene-view { height: 140px; border-radius: 10px; border: 1px solid var(--border); display: flex; flex-direction: column; justify-content: flex-end; padding: 12px; position: relative; overflow: hidden; background-size: cover; }
+    .scene-overlay { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,14,23,0.1) 0%, rgba(10,14,23,0.85) 100%); z-index: 1; }
+    .scene-title { font-size: 15px; font-weight: 700; color: #fff; z-index: 2; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+    .scene-desc { font-size: 11px; color: var(--muted); z-index: 2; margin-top: 1px; }
+
+    /* Options Interaction Panel Area */
+    .actions-panel { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+    .actions-group-title { font-size: 11px; font-weight: 600; color: var(--muted); margin: 2px 0; border-left: 2px solid var(--accent); padding-left: 6px; text-transform: uppercase; }
+    .action-btn { background: var(--surface2); border: 1px solid var(--border); text-align: left; padding: 12px; border-radius: 8px; color: var(--text); cursor: pointer; font-size: 12px; transition: background 0.2s; width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .action-btn:active { background: rgba(59,159,255,0.08); border-color: var(--accent); }
+    .action-btn .cost { font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; text-align: right; }
+
+    /* Batch task execution pop */
+    .batch-row { display: flex; gap: 6px; background: var(--surface2); padding: 6px; border: 1px solid var(--border); border-radius: 8px; align-items: center; margin-bottom: 2px; }
+    .batch-select { flex: 1; padding: 6px; font-size: 12px; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 6px; }
+    .batch-btn { width: auto; font-size: 11px; padding: 6px 10px; margin: 0; box-shadow: none; }
+
+    /* Log Output Terminal Box */
+    .right-column { background: #070a12; border: 1px solid var(--border); border-radius: 10px; display: flex; flex-direction: column; padding: 12px; font-family: 'JetBrains Mono', 'Noto Sans SC', monospace; height: 100%; }
+    .log-header { font-size: 11px; color: var(--accent); margin-bottom: 6px; border-bottom: 1px solid var(--border); padding-bottom: 4px; display: flex; justify-content: space-between; }
+    .log-output { flex: 1; overflow-y: auto; font-size: 11px; line-height: 1.5; color: #cbd5e1; display: flex; flex-direction: column; gap: 4px; padding-right: 2px; }
+    
+    /* Log Folders CSS */
+    .day-block-header { background: var(--surface2); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); color: var(--muted); font-size: 11px; margin: 4px 0 2px 0; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+    .day-block-content { display: flex; flex-direction: column; gap: 4px; }
+    .day-block-content.collapsed { display: none; }
+
+    .log-item { animation: fadeIn 0.1s ease-out forwards; word-break: break-all; }
+    .log-sys { color: var(--accent); }
+    .log-success { color: var(--success); }
+    .log-warn { color: var(--warn); }
+    .log-danger { color: var(--danger); }
+
+    /* High-End Analytics Tab Styles */
+    .tabs-nav { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+    .tab-link { padding: 8px 12px; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; font-weight: 500; border-bottom: 2px solid transparent; }
+    .tab-link.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    
+    .matrix-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11px; font-family: 'JetBrains Mono', monospace; }
+    .matrix-table th, .matrix-table td { border: 1px solid var(--border); padding: 6px; text-align: center; }
+    .matrix-table th { background: var(--surface2); color: var(--muted); }
+    
+    .stat-row { display: flex; justify-content: space-between; padding: 10px 12px; background: var(--surface2); border-radius: 6px; margin-bottom: 6px; font-size: 12px; }
+
+    /* Beautiful Endgame Scoring Grid */
+    .score-board-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+    .score-badge { background: linear-gradient(145deg, var(--surface2), var(--surface)); border: 1px solid var(--border); padding: 12px 6px; border-radius: 8px; text-align: center; }
+    .score-badge .title { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .score-badge .num { font-size: 22px; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #fff; }
+    .score-badge.badge-mood .num { color: var(--success); }
+    .score-badge.badge-intel .num { color: var(--accent); }
+    .score-badge.badge-energy .num { color: var(--warn); }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  </style>
+</head>
+<body>
+
+<div class="page">
+  
+  <h1>中大材料院 · 新生分流模拟器</h1>
+  <div class="subtitle">v2.6 亲友联机优化版 · 自定义姓名 · 智能归档</div>
+
+  <div id="screen-setup" class="screen active">
+    <div class="panel">
+      <div class="form-group">
+        <label for="username">你的姓名/昵称 (支持个性化日志打印)</label>
+        <input type="text" id="username" value="萌新材料人" placeholder="请输入你的名字...">
+      </div>
+      <div class="form-group">
+        <label for="gender">角色性别</label>
+        <select id="gender">
+          <option value="男生">男生</option>
+          <option value="女生">女生</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="grade">选择年级</label>
+        <select id="grade">
+          <option value="25级大一新生">25级大一新生</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="career">未来毕业志向</label>
+        <select id="career">
+          <option value="保研">保研 (推免研究生)</option>
+          <option value="考研">考研 (参加全国统考)</option>
+          <option value="出国留学">出国留学 (申请海外名校)</option>
+          <option value="毕业直接工作">毕业直接工作 (投身战略新兴产业)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>初始学科偏好（多选）</label>
+        <div class="checkbox-group" id="subjects">
+          <label class="checkbox-label"><input type="checkbox" value="数学" checked> 数学</label>
+          <label class="checkbox-label"><input type="checkbox" value="物理"> 物理</label>
+          <label class="checkbox-label"><input type="checkbox" value="化学" checked> 化学</label>
+          <label class="checkbox-label"><input type="checkbox" value="工程制图"> 工程制图</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="research">是否计划加入课题组实验室？</label>
+        <select id="research">
+          <option value="yes">积极加入课题组（是）</option>
+          <option value="no">先观望（否）</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="compete">是否计划参加学科/双创竞赛？</label>
+        <select id="compete">
+          <option value="yes">果断参赛（是）</option>
+          <option value="no">专注课内（否）</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="club">是否加入学生工作部门或社团？</label>
+        <select id="club">
+          <option value="no">清净纯粹（否）</option>
+          <option value="yes">锻炼个人能力（是）</option>
+        </select>
+      </div>
+      <button class="btn" id="btn-start" style="margin-top: 10px;">随机初始化人物并推进</button>
+    </div>
+  </div>
+
+  <div id="screen-major" class="screen">
+    <div class="panel">
+      <h2 style="font-size: 16px; margin-bottom: 8px; text-align: center;">请选择您要进行一周模拟体验的专业细分方向</h2>
+      <p style="font-size: 12px; color: var(--muted); text-align: center; margin-bottom: 16px;">
+        提示：选择后系统将严格按照此专业的课程大纲约束，随机抽签分派本周课表。
+      </p>
+      <div class="major-grid">
+        <div class="major-card" data-major="材料物理专业">
+          <h3>材料物理专业</h3>
+          <p>主攻固体物理、半导体微电子及功能光电材料。培养具备原子尺度预测、多尺度微观调控的硬核极客。</p>
+        </div>
+        <div class="major-card" data-major="材料化学专业">
+          <h3>材料化学专业</h3>
+          <p>聚焦微观量子结构、材料热力学经典规律以及前沿绿色能源催化。培养具备精细化化学表征的科研先锋。</p>
+        </div>
+        <div class="major-card" data-major="高分子专业">
+          <h3>高分子专业</h3>
+          <p>主打现代高分子复合工程材料、先进医学传感器。培养在生命医疗、航空军工复合结构设计的前瞻工程师。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="screen-game" class="screen">
+    <div class="status-bar">
+      <div class="status-box">
+        <div class="status-label"><span>精神 (Mood)</span><span id="val-mood">80/100</span></div>
+        <div class="progress-outer"><div class="progress-inner p-mood" id="bar-mood"></div></div>
+      </div>
+      <div class="status-box">
+        <div class="status-label"><span>智慧 (Intel)</span><span id="val-intel">50/100</span></div>
+        <div class="progress-outer"><div class="progress-inner p-intel" id="bar-intel"></div></div>
+      </div>
+      <div class="status-box">
+        <div class="status-label"><span>能量 (Energy)</span><span id="val-energy">90/100</span></div>
+        <div class="progress-outer"><div class="progress-inner p-energy" id="bar-energy"></div></div>
+      </div>
+    </div>
+
+    <div class="context-bar">
+      <div>
+        <span id="text-time" style="font-weight: 700; color: var(--accent);">第 5 周 · 星期一</span> | 
+        <span id="text-major" style="color: #fff;">高分子专业</span> | 
+        <span id="text-career" style="color: var(--muted);">志向: 保研</span>
+      </div>
+      <div class="tags">
+        <div class="tag" id="tag-lab">课题组</div>
+        <div class="tag" id="tag-compete">竞赛组</div>
+        <div class="tag" id="tag-club">学工社团</div>
+      </div>
+    </div>
+
+    <div class="task-alarm" id="task-alarm-bar">
+      <div id="alarm-text">⚠️ 任务清单提示：作业或实验报告积压中！</div>
+      <div class="task-counters">
+        <span>预习: <strong id="cnt-prep" style="color:#fff;">0</strong></span>
+        <span>实验: <strong id="cnt-report" style="color:#fff;">0</strong></span>
+        <span>作业: <strong id="cnt-homework" style="color:#fff;">0</strong></span>
+      </div>
+    </div>
+
+    <div class="game-body">
+      <div class="left-column">
+        <div class="scene-view" id="scene-img">
+          <div class="scene-overlay"></div>
+          <div class="scene-title" id="scene-title">宿舍场景</div>
+          <div class="scene-desc" id="scene-desc">温馨但也容易使人懒散的寝室。</div>
+        </div>
+        <div class="actions-panel" id="actions-panel">
+          </div>
+      </div>
+
+      <div class="right-column">
+        <div class="log-header">
+          <span>🎮 历史日程运行监控（点击星期大条可折叠）</span>
+          <span id="init-summary" style="font-size:10px; color: var(--muted);"></span>
+        </div>
+        <div class="log-output" id="log-output"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="screen-end" class="screen">
+    <div class="panel" style="border: 1px solid rgba(52,211,153,0.3); background: linear-gradient(180deg, #132237 0%, #121a2b 100%);">
+      <h2 style="font-size: 20px; text-align: center; margin-bottom: 8px; color: var(--success); letter-spacing: 1px;">🌟 中大材料分流模拟结算面板 🌟</h2>
+      <p id="end-jitang" style="font-size: 13px; text-align: center; line-height: 1.6; color: #cbd5e1; margin-bottom: 16px; padding: 0 10px; font-style: italic;"></p>
+      
+      <div class="score-board-grid">
+        <div class="score-badge badge-mood">
+          <div class="title">精神面貌</div>
+          <div class="num" id="end-mood">0</div>
+        </div>
+        <div class="score-badge badge-intel">
+          <div class="title">核心智慧</div>
+          <div class="num" id="end-intel">0</div>
+        </div>
+        <div class="score-badge badge-energy">
+          <div class="title">续航能量</div>
+          <div class="num" id="end-energy">0</div>
+        </div>
+      </div>
+
+      <div class="tabs-nav">
+        <button class="tab-link active" data-tab="personal">📋 未结任务清算</button>
+        <button class="tab-link" data-tab="markov">⚙️ 马尔可夫决策特征分析</button>
+      </div>
+
+      <div class="tab-panel active" id="panel-personal">
+        <div class="stat-row"><span>本周未交付实验预习报告数：</span><strong id="end-prep" style="color:var(--warn)">0</strong></div>
+        <div class="stat-row"><span>本周未交付实验报告总份数：</span><strong id="end-report" style="color:var(--danger)">0</strong></div>
+        <div class="stat-row"><span>未完成的专业课程作业积压：</span><strong id="end-homework" style="color:var(--danger)">0</strong></div>
+      </div>
+
+      <div class="tab-panel" id="panel-markov">
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th>源 \ 目标</th>
+              <th>理论</th>
+              <th>实验</th>
+              <th>爆肝</th>
+              <th>休闲</th>
+              <th>科研</th>
+            </tr>
+          </thead>
+          <tbody id="matrix-body"></tbody>
+        </table>
+        <div id="mock-stats"></div>
+      </div>
+      
+      <button class="btn" id="btn-share" style="background: var(--accent2); margin-top: 16px;">📋 一键生成我的分流大字报（复制分享）</button>
+      <button class="btn" id="btn-restart" style="margin-top: 10px; background: var(--surface2); border: 1px solid var(--accent); color: var(--accent); box-shadow:none;">开启下一轮分流抉择人生</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Complete Courses Databases 
+  const COURSE_DB = {
+    common: [
+      { id: 'linear_alg', name: '线性代数', hours: 2, type: 'theory', power: '培养逻辑推理及为后续材料建模提供工具。' },
+      { id: 'eng_draw', name: '工程制图', hours: 2, type: 'theory', power: '建立空间想象能力，掌握CAD基础。' },
+      { id: 'mat_sci_base', name: '材料科学基础', hours: 2, type: 'theory', power: '深度掌握工艺与组织结构的闭环联系。' },
+      { id: 'mat_sci_lab', name: '材料科学基础实验', hours: 7, type: 'lab', power: '建立专业的科研原始记录规范。' },
+      { id: 'circuit_base', name: '电路理论基础', hours: 2, type: 'theory', power: '为后续光电检测系统打下底座。' },
+      { id: 'circuit_lab', name: '电路理论基础实验', hours: 4, type: 'lab', power: '能够独立调试和排查硬件电路故障。' }
+    ],
+    mat_phys: [
+      { id: 'mp_design_lab', name: '材料物理自主设计实验', hours: 7, type: 'lab', power: '磨砺独立查阅文献、攻坚科研的综合实力。' },
+      { id: 'mp_perf', name: '材料物理性能', hours: 2, type: 'theory', power: '看透微观电子行为到宏观光电性能的链条。' },
+      { id: 'semi_phys', name: '半导体物理', hours: 3, type: 'theory', power: '探索半导体器件运作的微观物理世界。' },
+      { id: 'opto_dev', name: '光电材料与器件', hours: 2, type: 'theory', power: '紧跟战略应用方向，掌握前沿能级配合。' },
+      { id: 'comp_mat_sci', name: '计算材料科学', hours: 3, type: 'theory', power: '塑造人工智能“数据驱动”的现代化研发观。' }
+    ],
+    mat_chem: [
+      { id: 'struct_chem', name: '结构化学', hours: 2, type: 'theory', power: '从微观轨道重叠角度把握化学键本质。' },
+      { id: 'mat_thermo', name: '材料热力学', hours: 2, type: 'theory', power: '精准评估材料在复杂服役下的相变趋势。' },
+      { id: 'catalysis', name: '催化科学与进展', hours: 2, type: 'theory', power: '建立面向碳中和与绿色能源的产业技术视野。' },
+      { id: 'pc_lab', name: '物理化学实验(材化)', hours: 8, type: 'lab', power: '精通利用物理化学手段定量定量研究化学变化规律。' },
+      { id: 'organic_lab', name: '有机化学实验(材化)', hours: 8, type: 'lab', power: '掌握有机危险试剂安全规程，精练合成定力。' }
+    ],
+    polymer: [
+      { id: 'poly_comp', name: '高分子复合材料', hours: 2, type: 'theory', power: '具备航空航天高强高模构件方案的评估眼光。' },
+      { id: 'medical_sensor', name: '医学传感器', hours: 2, type: 'theory', power: '跨界融合微电子，开发新一代电子皮肤贴片。' },
+      { id: 'biomaterials', name: '生物材料科学', hours: 2, type: 'theory', power: '理解人工器官材料在医疗领域的安全修饰应用。' },
+      { id: 'pc_lab_poly', name: '物理化学实验(高分子)', hours: 8, type: 'lab', power: '熟练掌握使用物理学原理探查体系平衡的方法。' },
+      { id: 'organic_lab_poly', name: '有机化学实验(高分子)', hours: 8, type: 'lab', power: '夯实精细高分子链段修饰与复杂提纯的功底。' }
+    ]
+  };
+
+  const BREAKFAST_MENU = [
+    { name: "芝士牛肉培根堡+低脂燕麦奶" }, { name: "食堂生滚鱼片粥+香脆油条" },
+    { name: "全麦三明治+无糖黑咖啡" }, { name: "杂粮煎饼果子(加双蛋)+豆浆" }
+  ];
+
+  const SCENE_PRESETS = {
+    classroom: { title: "多媒体公共阶梯教室", desc: "四周是同学们翻书和刷题的细碎声响。", style: "linear-gradient(135deg, #2c3e50, #4ca1af)" },
+    lab: { title: "国家级材料工程教学实验室", desc: "通风橱规律轰鸣，桌上整齐摆放着精密测试仪器。", style: "linear-gradient(135deg, #11998e, #38ef7d)" },
+    dorm: { title: "新生四人标准寝室", desc: "是一个极具吸引力的偷懒港湾。", style: "linear-gradient(135deg, #1d2671, #c33764)" },
+    library: { title: "东校图书馆考研不眠室", desc: "极其安静，是绩点领跑者的必争之地。", style: "linear-gradient(135deg, #833ab4, #fd1d1d)" },
+    mall: { title: "gogo新天地青春街区", desc: "充满食物和奶茶的香气与欢笑声。", style: "linear-gradient(135deg, #fcb045, #fd1d1d)" },
+    office: { title: "学工辅导员办公室 / 竞赛基地", desc: "白板上写满了各种活动策划与甘特图框架。", style: "linear-gradient(135deg, #00c6ff, #0072ff)" }
+  };
+
+  const DAYS_STR = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期天"];
+
+  let state = {
+    username: '萌新材料人',
+    profile: {},
+    stats: { mood: 75, intelligence: 50, energy: 85 },
+    tasks: { labPrep: 0, labReport: 0, homework: 0 },
+    counters: { love: 0, entertain: 0 },
+    week: 1, dayIndex: 0, phase: 'morning', currentMajor: '', weeklySchedule: {}
+  };
+
+  class MarkovTracker {
+    constructor() {
+      this.states = ['理论', '实验', '爆肝', '休闲', '科研'];
+      this.matrix = [ [0,0,0,0,0], [0,0,0,0,0], [0,0,0,0,0], [0,0,0,0,0], [0,0,0,0,0] ];
+      this.lastCategory = null;
+    }
+    getCategory(actionType) {
+      if (actionType === 'class_theory') return '理论';
+      if (actionType === 'class_lab') return '实验';
+      if (actionType === 'study_hard') return '爆肝';
+      if (actionType === 'leisure_love' || actionType === 'leisure_fun') return '休闲';
+      if (actionType === 'research_compete') return '科研';
+      return null;
+    }
+    record(actionType) {
+      const currentCat = this.getCategory(actionType);
+      if (!currentCat) return;
+      if (this.lastCategory !== null) {
+        const fromIdx = this.states.indexOf(this.lastCategory);
+        const toIdx = this.states.indexOf(currentCat);
+        if (fromIdx !== -1 && toIdx !== -1) this.matrix[fromIdx][toIdx]++;
+      }
+      this.lastCategory = currentCat;
+    }
+  }
+
+  let tracker = new MarkovTracker();
+  const $ = id => document.getElementById(id);
+  let currentDayContainer = null;
+
+  function generateStrictSchedule(majorName) {
+    let pool = [...COURSE_DB.common];
+    if (majorName === '材料物理专业') pool.push(...COURSE_DB.mat_phys);
+    else if (majorName === '材料化学专业') pool.push(...COURSE_DB.mat_chem);
+    else if (majorName === '高分子专业') pool.push(...COURSE_DB.polymer);
+
+    let schedule = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
+    let courseCounts = {};
+    pool.forEach(c => courseCounts[c.id] = 0);
+
+    const shuffleArray = arr => arr.sort(() => Math.random() - 0.5);
+    let targetDays = [0, 1, 2, 3, 4];
+    
+    for (let day of targetDays) {
+      let dailyLabCount = 0;
+      let dailyHours = 0;
+      let dayPool = shuffleArray([...pool]);
+
+      for (let course of dayPool) {
+        if (dailyHours >= 8) break;
+        if (course.type === 'theory' && courseCounts[course.id] >= 2) continue;
+        if (course.type === 'lab' && courseCounts[course.id] >= 1) continue;
+        if (course.type === 'lab' && dailyLabCount >= 1) continue;
+
+        schedule[day].push(course);
+        courseCounts[course.id]++;
+        dailyHours += course.hours;
+        if (course.type === 'lab') dailyLabCount++;
+        if (schedule[day].length >= 2) break;
+      }
+    }
+    return schedule;
+  }
+
+  function prepareDayLogContainer(dayIdx) {
+    if (currentDayContainer) {
+      const prevContent = currentDayContainer.querySelector('.day-block-content');
+      if (prevContent) prevContent.classList.add('collapsed');
+      const prevHeader = currentDayContainer.querySelector('.fold-indicator');
+      if (prevHeader) prevHeader.innerText = '[+ 展开复盘]';
+    }
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'day-block-wrapper';
+    
+    const header = document.createElement('div');
+    header.className = 'day-block-header';
+    header.innerHTML = `<span>📅 ${DAYS_STR[dayIdx]} 日程流水线已归档</span> <span class="fold-indicator">[- 正在实时输出]</span>`;
+    
+    const content = document.createElement('div');
+    content.className = 'day-block-content';
+
+    header.onclick = () => {
+      content.classList.toggle('collapsed');
+      header.querySelector('.fold-indicator').innerText = content.classList.contains('collapsed') ? '[+ 展开复盘]' : '[- 点击折叠]';
+    };
+
+    wrapper.appendChild(header);
+    wrapper.appendChild(content);
+    $('log-output').appendChild(wrapper);
+    currentDayContainer = wrapper;
+  }
+
+  function appendLog(text, styleClass = '') {
+    if (!currentDayContainer) return;
+    const targetBox = currentDayContainer.querySelector('.day-block-content');
+    const item = document.createElement('div');
+    item.className = `log-item ${styleClass}`;
+    item.innerHTML = `&gt; ${text}`;
+    targetBox.appendChild(item);
+    
+    const out = $('log-output');
+    out.scrollTop = out.scrollHeight;
+  }
+
+  function updateUI() {
+    ['mood', 'intelligence', 'energy'].forEach(p => {
+      if (state.stats[p] > 100) state.stats[p] = 100;
+      if (state.stats[p] < 0) state.stats[p] = 0;
+    });
+
+    $('val-mood').innerText = `${state.stats.mood}/100`;
+    $('val-intel').innerText = `${state.stats.intelligence}/100`;
+    $('val-energy').innerText = `${state.stats.energy}/100`;
+
+    $('bar-mood').style.width = `${state.stats.mood}%`;
+    $('bar-intel').style.width = `${state.stats.intelligence}%`;
+    $('bar-energy').style.width = `${state.stats.energy}%`;
+
+    $('text-time').innerText = `第 ${state.week} 周 · ${DAYS_STR[state.dayIndex]}`;
+    $('text-major').innerText = state.currentMajor || "未分流";
+    $('text-career').innerText = `志向: ${state.profile.career || '未定'}`;
+
+    $('tag-lab').className = `tag ${state.profile.research ? 'active' : ''}`;
+    $('tag-compete').className = `tag ${state.profile.compete ? 'active' : ''}`;
+    $('tag-club').className = `tag ${state.profile.club ? 'active' : ''}`;
+
+    $('cnt-prep').innerText = state.tasks.labPrep;
+    $('cnt-report').innerText = state.tasks.labReport;
+    $('cnt-homework').innerText = state.tasks.homework;
+    $('task-alarm-bar').style.display = (state.tasks.labPrep > 0 || state.tasks.labReport > 0 || state.tasks.homework > 0) ? 'flex' : 'none';
+  }
+
+  function setScene(presetKey) {
+    const data = SCENE_PRESETS[presetKey];
+    if (!data) return;
+    $('scene-img').style.background = data.style;
+    $('scene-title').innerText = data.title;
+    $('scene-desc').innerText = data.desc;
+  }
+
+  function advanceFlow() {
+    updateUI();
+    const actionsBox = $('actions-panel');
+    actionsBox.innerHTML = '';
+    const currentDayClasses = state.weeklySchedule[state.dayIndex] || [];
+
+    switch(state.phase) {
+      case 'morning':
+        setScene('dorm');
+        appendLog(`清晨，闹钟响起，[${state.username}] 新的一天悄然开启。`, 'log-sys');
+        actionsBox.innerHTML = `
+          <div class="actions-group-title">🌅 清晨时光</div>
+          <button class="btn" id="btn-next-phase">走向新的一天</button>
+        `;
+        $('btn-next-phase').onclick = () => { state.phase = 'breakfast'; advanceFlow(); };
+        break;
+
+      case 'breakfast':
+        $('scene-img').style.background = 'linear-gradient(135deg, #e65c00, #F9D423)';
+        $('scene-title').innerText = "学区大食堂";
+        $('scene-desc').innerText = "开满热咖啡与煎饼香气。";
+        appendLog(`[${state.username}] 快步走进了食堂，是否买份早餐？`);
+        actionsBox.innerHTML = `
+          <div class="actions-group-title">🍳 饮食抉择</div>
+          <button class="action-btn" id="bf-yes"><span>买一份食堂营养早餐</span><span class="cost">Mood+5, Energy+15</span></button>
+          <button class="action-btn" id="bf-no" style="margin-top:6px;"><span>不吃了，多躺会儿直接冲教室</span><span class="cost">Mood-5, Energy-10</span></button>
+        `;
+        $('bf-yes').onclick = () => {
+          const dish = BREAKFAST_MENU[Math.floor(Math.random() * BREAKFAST_MENU.length)];
+          state.stats.mood += 5; state.stats.energy += 15;
+          appendLog(`【享用早餐】你选择了：${dish.name}。`, 'log-success');
+          state.phase = 'period_0'; advanceFlow();
+        };
+        $('bf-no').onclick = () => {
+          state.stats.mood -= 5; state.stats.energy -= 10;
+          appendLog("【跳过早餐】空着肚子跑出宿舍，低血糖警告...", 'log-warn');
+          state.phase = 'period_0'; advanceFlow();
+        };
+        break;
+
+      case 'period_0':
+        handleClassSession(0, currentDayClasses, 'period_1');
+        break;
+
+      case 'period_1':
+        handleClassSession(1, currentDayClasses, 'evening');
+        break;
+
+      case 'evening':
+        if (state.dayIndex >= 5) {
+          $('scene-title').innerText = "周末自由实践时光";
+          $('scene-desc').innerText = "摆脱了教务大纲束缚，时间完全由你支配。";
+        } else {
+          setScene('dorm');
+        }
+        appendLog("自由支配的时段来临，请掌控个人节奏：");
+        renderLeisurePanel(actionsBox);
+        break;
+    }
+  }
+
+  function handleClassSession(slotIndex, dayClasses, nextPhase) {
+    const hasClass = dayClasses[slotIndex];
+    const actionsBox = $('actions-panel');
+
+    if (state.dayIndex >= 5) {
+      state.phase = nextPhase; advanceFlow(); return;
+    }
+    if (!hasClass) {
+      setScene('dorm');
+      appendLog(`【自修空档】此时没有排课，获得了宝贵的自修时间。`, 'log-sys');
+      actionsBox.innerHTML = `<button class="btn" id="btn-skip-class">继续推进日程</button>`;
+      $('btn-skip-class').onclick = () => { state.phase = nextPhase; advanceFlow(); };
+      return;
+    }
+
+    if (hasClass.type === 'lab') {
+      setScene('lab');
+      tracker.record('class_lab');
+      appendLog(`【实验课触发】《${hasClass.name}》实验大课开讲。`, 'log-sys');
+      actionsBox.innerHTML = `
+        <div class="actions-group-title">🔬 实验操作现场</div>
+        <button class="btn" id="btn-do-lab">开始配置样品并调取数据分析</button>
+      `;
+      $('btn-do-lab').onclick = () => {
+        let successRate = 0.50;
+        if (state.tasks.labPrep > 0) {
+          successRate = 0.90; state.tasks.labPrep--;
+          appendLog(`[${state.username}] 消耗了1份【实验预习报告】，实验胸有成竹！`);
+        } else {
+          appendLog("⚠️ 提示：你由于未提前撰写预习报告，初始成功率仅有 50% 基础值。", 'log-warn');
+        }
+        state.stats.energy -= 15; state.stats.intelligence += 4; state.tasks.labReport++; 
+        if (Math.random() < successRate) {
+          state.stats.mood += 8; appendLog(`✨【实验大成功】测试曲线完美！师兄大加称赞！(Mood+8, 报告+1)`, 'log-success');
+        } else {
+          state.stats.mood -= 5; appendLog(`💥【实验轻微失误】控温略有偏差产生噪声，需重新测样。(Mood-5, 报告+1)`, 'log-danger');
+        }
+        state.phase = nextPhase; advanceFlow();
+      };
+    } else {
+      setScene('classroom');
+      tracker.record('class_theory');
+      appendLog(`【理论课】《${hasClass.name}》正在讲授。`, 'log-sys');
+      actionsBox.innerHTML = `
+        <div class="actions-group-title">📖 阶梯教室课堂</div>
+        <button class="action-btn" id="class-listen"><span>认真听讲并推导核心公式</span><span class="cost">Energy-10, Intel+5, 作业+1</span></button>
+        <button class="action-btn" id="class-sleep" style="margin-top:6px;"><span>玩手机 / 靠着后排偷偷打个瞌睡</span><span class="cost">Energy+5, Mood+3, 作业+1</span></button>
+      `;
+      $('class-listen').onclick = () => {
+        state.stats.energy -= 10; state.stats.intelligence += 5; state.tasks.homework++;
+        appendLog(`【认真听讲】死死盯住文献模型，脑力充能。(Intel+5, 作业+1)`, 'log-success');
+        state.phase = nextPhase; advanceFlow();
+      };
+      $('class-sleep').onclick = () => {
+        state.stats.energy += 5; state.stats.mood += 3; state.tasks.homework++;
+        appendLog(`【课堂摸鱼】打了个小盹，体力稍回复，面临后续作业压力。(作业+1)`, 'log-warn');
+        state.phase = nextPhase; advanceFlow();
+      };
+    }
+  }
+
+  function renderLeisurePanel(container) {
+    const makeBatchUI = (taskKey, taskLabel) => {
+      const amt = state.tasks[taskKey]; if (amt <= 0) return '';
+      let options = '';
+      for (let i = 1; i <= amt; i++) options += `<option value="${i}">连续处理 ${i} 份</option>`;
+      return `
+        <div class="batch-row">
+          <span style="font-size:11px; width:70px; color:var(--warn); font-weight:700;">${taskLabel}:</span>
+          <select class="batch-select" id="batch-sel-${taskKey}">${options}</select>
+          <button class="btn batch-btn" id="batch-btn-${taskKey}">爆肝消灭</button>
+        </div>
+      `;
+    };
+
+    let html = `<div class="actions-group-title">📚 学业作业清缴互动区</div>`;
+    let tomorrowHasLab = false;
+    if (state.dayIndex < 4) {
+      const tomoClasses = state.weeklySchedule[state.dayIndex + 1] || [];
+      tomorrowHasLab = tomoClasses.some(c => c && c.type === 'lab');
+    }
+    if (tomorrowHasLab) {
+      html += `<p style="font-size:11px; color:var(--warn); background:rgba(251,191,36,0.08); border:1px dashed var(--warn); padding:6px; border-radius:6px; margin-bottom:6px;">
+        💡 <b>前夜提示</b>：明天有必修实验大课！强烈建议今晚选择【前往图书馆自习】撰写预习报告以大幅提高明天的成功率！
+      </p>`;
+    }
+
+    const bPrep = makeBatchUI('labPrep', '预习报告');
+    const bRep = makeBatchUI('labReport', '实验报告');
+    const bHw = makeBatchUI('homework', '课程作业');
+    html += (!bPrep && !bRep && !bHw) ? `<p style="font-size:11px; color:var(--success); padding:2px 0;">✨ 所有积压作业均已清空！</p>` : (bPrep + bRep + bHw);
+
+    const isAntiAddicted = (state.counters.love >= 5 || state.counters.entertain >= 5);
+    const antiText = isAntiAddicted ? `<span style="color:var(--danger); font-weight:700;">[过度沉迷! 反噬-3]</span>` : `<span>Energy+12, Mood+8</span>`;
+
+    html += `
+      <div class="actions-group-title">🌱 自由课余决策</div>
+      <button class="action-btn" id="act-study"><span>前往图书馆自主复习（撰写实验预习报告）</span><span class="cost">Energy-8, Intel+4, 预习报告+1</span></button>
+      <button class="action-btn" id="act-lab-extra" style="margin-top:4px; border-color:var(--accent);"><span>🧬 潜入导师课题组搬砖打杂（做测试、看电镜）</span><span class="cost">Energy-15, Intel+8</span></button>
+      <button class="action-btn" id="act-comp-extra" style="margin-top:4px; border-color:var(--accent2);"><span>🏆 挑灯夜战修改学科竞赛/双创PPT路演方案</span><span class="cost">Energy-12, Intel+7</span></button>
+      <button class="action-btn" id="act-fun" style="margin-top:4px;"><span>【娱乐与休息】放松追剧 / 宿舍寝室开黑躺平</span><span class="cost">${antiText}</span></button>
+      <button class="action-btn" id="act-love" style="margin-top:4px;"><span>【谈恋爱】约喜欢的人在南校区校道树荫下漫步</span><span class="cost">${antiText}</span></button>
+      <button class="btn" id="btn-end-day" style="margin-top:10px; background:linear-gradient(135deg, #434343, #000000);">🌙 整理收拾，熄灯入睡</button>
+    `;
+    container.innerHTML = html;
+
+    ['labPrep', 'labReport', 'homework'].forEach(k => {
+      const btn = $(`batch-btn-${k}`);
+      if (btn) {
+        btn.onclick = () => {
+          const count = parseInt($(`batch-sel-${k}`).value);
+          tracker.record('study_hard');
+          state.stats.energy -= (k === 'labPrep' ? 5 : k === 'labReport' ? 12 : 8) * count;
+          state.tasks[k] -= count; state.stats.intelligence += (3 * count);
+          appendLog(`💥【高效消灭】一口气高强度交付清缴了 ${count} 份学业任务！(Intel+${3*count})`, 'log-success'); advanceFlow();
+        };
+      }
+    });
+
+    $('act-study').onclick = () => {
+      setScene('library'); tracker.record('study_hard');
+      state.stats.energy -= 8; state.stats.intelligence += 4; state.tasks.labPrep += 1;
+      appendLog("【图书馆自习】你仔细查阅文献，完成了一份详实的【实验预习报告】。", 'log-success'); advanceFlow();
+    };
+    $('act-lab-extra').onclick = () => {
+      setScene('lab'); tracker.record('research_compete');
+      state.stats.energy -= 15; state.stats.intelligence += 8;
+      appendLog(`[${state.username}] 跟着课题组师兄给大型透射电镜(TEM)换样、处理波谱，一线科研经验暴涨。`, 'log-success'); advanceFlow();
+    };
+    $('act-comp-extra').onclick = () => {
+      setScene('office'); tracker.record('research_compete');
+      state.stats.energy -= 12; state.stats.intelligence += 7;
+      appendLog("【科创打比赛】深度梳理路演项目技术路线，打磨修改材料双创竞赛PPT方案。", 'log-success'); advanceFlow();
+    };
+    $('act-fun').onclick = () => {
+      setScene('mall'); tracker.record('leisure_fun'); state.counters.entertain++;
+      if (state.counters.entertain >= 5) {
+        state.stats.energy -= 3; appendLog("🚨【反沉迷警告】本周娱乐频率过高，生物钟紊乱体力倒扣！", 'log-danger');
+      } else {
+        state.stats.energy += 12; state.stats.mood += 8; appendLog("【休闲放松】在寝室痛快打游戏或追剧，身心压力得到释放。", 'log-success');
+      }
+      advanceFlow();
+    };
+    $('act-love').onclick = () => {
+      setScene('mall'); tracker.record('leisure_love'); state.counters.love++;
+      if (state.counters.love >= 5) {
+        state.stats.energy -= 3; appendLog("🚨【反沉迷警告】连续高频约会荒废功课，身心疲惫...", 'log-danger');
+      } else {
+        state.stats.energy += 12; state.stats.mood += 8; appendLog("【浪漫恋爱】与喜欢的人在东校园静谧的小道上并肩散步，幸福感溢出。", 'log-success');
+      }
+      advanceFlow();
+    };
+
+    $('btn-end-day').onclick = () => {
+      state.dayIndex++;
+      if (state.dayIndex > 6) { concludeSimulationWeek(); } 
+      else { state.phase = 'morning'; prepareDayLogContainer(state.dayIndex); advanceFlow(); }
+    };
+  }
+
+  function concludeSimulationWeek() {
+    if (currentDayContainer) {
+      const prevContent = currentDayContainer.querySelector('.day-block-content');
+      if (prevContent) prevContent.classList.add('collapsed');
+      const prevHeader = currentDayContainer.querySelector('.fold-indicator');
+      if (prevHeader) prevHeader.innerText = '[+ 展开复盘]';
+    }
+
+    $('screen-game').classList.remove('active');
+    $('screen-end').classList.add('active');
+
+    $('end-mood').innerText = state.stats.mood;
+    $('end-intel').innerText = state.stats.intelligence;
+    $('end-energy').innerText = state.stats.energy;
+    $('end-prep').innerText = state.tasks.labPrep;
+    $('end-report').innerText = state.tasks.labReport;
+    $('end-homework').innerText = state.tasks.homework;
+
+    let soup = `【${state.username}】作为【${state.currentMajor}】的新生，在完全未知的动态课表里完成了高强度的一周体验。`;
+    if (state.stats.intelligence >= 75 && state.tasks.homework === 0 && state.tasks.labReport === 0) {
+      soup += " 🏅 惊人的学神！智慧值拔尖且作业清空交付！实至名归的专业第一，保研大门已完全敞开！";
+    } else if (state.stats.intelligence >= 60 && (state.profile.research || state.profile.compete)) {
+      soup += " 🔬 你是真正的科研狂热派！日常进组搬砖打比赛积累的硬核见识，将成为你未来简历上最闪耀的资历！";
+    } else {
+      soup += " ⚖️ 稳健的终局状态！你在这场硬核高压的专业学习与丰富的业余生活中摸索到了绝佳的平衡点，来日方长！";
+    }
+    $('end-jitang').innerText = soup;
+
+    // Render Markov
+    const tbody = $('matrix-body'); tbody.innerHTML = '';
+    tracker.matrix.forEach((row, rIdx) => {
+      const sum = row.reduce((a, b) => a + b, 0);
+      let tr = document.createElement('tr');
+      let th = document.createElement('td'); th.innerText = tracker.states[rIdx]; th.style.fontWeight = 'bold'; tr.appendChild(th);
+      row.forEach(val => {
+        let td = document.createElement('td'); td.innerText = sum === 0 ? "0.0%" : `${((val / sum) * 100).toFixed(1)}%`; tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+
+    $('mock-stats').innerHTML = `
+      <div style="margin-top:10px; display:flex; flex-direction:column; gap:4px; font-size:11px;">
+        <div class="stat-row" style="background:rgba(52,211,153,0.12); border-left:2px solid var(--success);"><span>🎓 全服【推免保研王】玩家占比:</span><strong>19.2%</strong></div>
+        <div class="stat-row" style="background:rgba(59,159,255,0.12); border-left:2px solid var(--accent);"><span>💇 全服【进组科研狂人】玩家占比:</span><strong>38.5%</strong></div>
+      </div>
+    `;
+
+    // Active custom share content clipboard feature 
+    $('btn-share').onclick = () => {
+      const shareText = `【中大材料院·新生分流模拟器成绩单】\n玩家姓名: ${state.username}\n入读专业: ${state.currentMajor}\n毕业志向: ${state.profile.career}\n终局属性: 精神(${state.stats.mood}) | 智慧(${state.stats.intelligence}) | 续航能量(${state.stats.energy})\n评语: ${soup}\n快来测测你的分流人生吧！`;
+      navigator.clipboard.writeText(shareText).then(() => {
+        alert("🎉 复制成绩单大字报成功！快去微信发给朋友们或发群里PK炫耀吧！");
+      }).catch(() => {
+        alert("由于权限限制，请手动截屏分享面板给朋友哦！");
+      });
+    };
+  }
+
+  window.onload = () => {
+    $('btn-start').onclick = () => {
+      const checkedSubjects = [...document.querySelectorAll('#subjects input:checked')].map(el => el.value);
+      state.username = $('username').value.trim() || '萌新材料人';
+      state.profile = {
+        gender: $('gender').value, grade: $('grade').value, career: $('career').value,
+        subjects: checkedSubjects.length > 0 ? checkedSubjects : ['通用'],
+        research: $('research').value === 'yes', compete: $('compete').value === 'yes', club: $('club').value === 'yes'
+      };
+
+      state.stats.mood = Math.floor(Math.random() * 21) + 65;
+      state.stats.energy = Math.floor(Math.random() * 21) + 75;
+      state.stats.intelligence = 50;
+      state.week = Math.floor(Math.random() * 16) + 1;
+      state.dayIndex = 0; state.phase = 'morning';
+
+      $('log-output').innerHTML = ''; currentDayContainer = null;
+      $('screen-setup').classList.remove('active'); $('screen-major').classList.add('active');
+    };
+
+    document.querySelectorAll('.major-card').forEach(card => {
+      card.onclick = function() {
+        const selectedMajor = this.getAttribute('data-major');
+        state.currentMajor = selectedMajor;
+        state.weeklySchedule = generateStrictSchedule(selectedMajor);
+
+        $('screen-major').classList.remove('active'); $('screen-game').classList.add('active');
+        prepareDayLogContainer(0);
+
+        appendLog(`🚀【分流确认】[${state.username}] 正式迈入：【${selectedMajor}】的大门。`, 'log-sys');
+        appendLog(`🗓️ 本周高度随机约束的动态排课大纲已完美部署！`, 'log-success');
+        advanceFlow();
+      };
+    });
+
+    document.querySelectorAll('.tab-link').forEach(btn => {
+      btn.onclick = function() {
+        document.querySelectorAll('.tab-link').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        this.classList.add('active');
+        $(`panel-${this.getAttribute('data-tab')}`).classList.add('active');
+      };
+    });
+
+    $('btn-restart').onclick = () => {
+      tracker = new MarkovTracker();
+      state.counters.love = 0; state.counters.entertain = 0;
+      state.tasks.labPrep = 0; state.tasks.labReport = 0; state.tasks.homework = 0;
+      currentDayContainer = null;
+      $('screen-end').classList.remove('active'); $('screen-setup').classList.add('active');
+    };
+  };
+</script>
+
+</body>
+</html>
